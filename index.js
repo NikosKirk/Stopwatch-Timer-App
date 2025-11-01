@@ -28,6 +28,7 @@ const hoursInput = document.getElementById('hours');
 const minutesInput = document.getElementById('minutes');
 const secondsInput = document.getElementById('seconds');
 
+
 // Mode switching elements
 const stopwatchMode = document.getElementById('stopwatchMode');
 const timerMode = document.getElementById('timerMode');
@@ -41,6 +42,23 @@ const alarmSound = document.getElementById('alarmSound');
 // Debouncing variables
 let isSwitching = false;
 let pendingSwitch = null;
+
+// Function to enable/disable timer inputs
+function setTimerInputsState(enabled) {
+    hoursInput.disabled = !enabled;
+    minutesInput.disabled = !enabled;
+    secondsInput.disabled = !enabled;
+    
+    if (enabled) {
+        hoursInput.classList.remove('disabled');
+        minutesInput.classList.remove('disabled');
+        secondsInput.classList.remove('disabled');
+    } else {
+        hoursInput.classList.add('disabled');
+        minutesInput.classList.add('disabled');
+        secondsInput.classList.add('disabled');
+    }
+}
 
 // Format time to HH:MM:SS format
 function formatTime(time) {
@@ -152,7 +170,8 @@ function normalizeTimeUnits() {
 // Function to evaluate math expressions and set timer
 function evaluateAndSetTimer(inputElement) {
     let value = inputElement.value.trim();
-    
+    // Don't validate/evaluate if timer is running
+    if (isTimerRunning) return;
     // If empty, set to 0
     if (value === '') {
         inputElement.value = '0';
@@ -185,7 +204,8 @@ function evaluateAndSetTimer(inputElement) {
 // Function to prevent negative values and handle empty inputs
 function validateInput(inputElement) {
     let value = inputElement.value.trim();
-    
+    // Don't validate/evaluate if timer is running
+    if (isTimerRunning) return;
     // If empty, set to 0
     if (value === '') {
         inputElement.value = '0';
@@ -208,6 +228,8 @@ function validateInput(inputElement) {
 function startTimer() {
     if (!isTimerRunning && timerTime > 0) {
         isTimerRunning = true;
+        // Disable inputs when timer starts
+        setTimerInputsState(false);
         updateTimerDisplay();
         updateTimerIndicator();
         
@@ -235,6 +257,8 @@ function stopTimer() {
         clearInterval(timerIntervalId);
         timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse');
         updateTimerIndicator();
+        // Re-enable inputs when timer stops
+        setTimerInputsState(true);
     }
 }
 
@@ -246,6 +270,8 @@ function resetTimer() {
     updateTimerIndicator();
     document.body.classList.remove('alarm-active');
     stopAlarm(); // Stop alarm when resetting timer
+    // Ensure inputs are enabled after reset
+    setTimerInputsState(true);
 }
 
 function updateTimerDisplay() {
@@ -461,6 +487,9 @@ secondsInput.addEventListener('blur', function() {
 stopwatchMode.addEventListener('click', switchToStopwatch);
 timerMode.addEventListener('click', switchToTimer);
 
+
+
 // Initialize
 setTimer();
 updateTimerIndicator();
+setTimerInputsState(true); // Ensure inputs are enabled on startup

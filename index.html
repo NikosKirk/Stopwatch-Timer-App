@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stopwatch & Timer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="mode-switcher">
+            <button id="stopwatchMode" class="mode-btn active">Stopwatch</button>
+            <button id="timerMode" class="mode-btn">Timer</button>
+        </div>
+
+        <!-- Stopwatch Container -->
+        <div id="stopwatchContainer" class="mode-container active">
+            <h1>Stopwatch</h1>
+            <div class="time-display" id="display">00:00:00</div>
+            
+            <div class="controls">
+                <button id="startBtn">Start</button>
+                <button id="stopBtn">Stop</button>
+                <button id="resetBtn">Reset</button>
+                <button id="lapBtn">Lap</button>
+            </div>
+            
+            <div class="laps-container">
+                <div class="laps-title">Lap Times</div>
+                <div id="laps"></div>
+            </div>
+        </div>
+
+        <!-- Timer Container -->
+        <div id="timerContainer" class="mode-container">
+            <h1>Timer</h1>
+            <div class="time-display" id="timerDisplay">00:00:00</div>
+            
+            <div class="timer-inputs">
+                <div class="input-group">
+                    <label for="hours">Hours</label>
+                    <input type="number" id="hours" min="0" max="23" value="0">
+                </div>
+                <div class="input-group">
+                    <label for="minutes">Minutes</label>
+                    <input type="number" id="minutes" min="0" max="59" value="1">
+                </div>
+                <div class="input-group">
+                    <label for="seconds">Seconds</label>
+                    <input type="number" id="seconds" min="0" max="59" value="0">
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="timerStartBtn">Start</button>
+                <button id="timerStopBtn">Stop</button>
+                <button id="timerResetBtn">Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audio element for timer alarm -->
+     <!-- Source : https://www.youtube.com/watch?v=T2qwIWIrztQ -->
+    <audio id="alarmSound" preload="auto" loop>
+        <source src="./Alarm.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="index.js"></script>
+</body>
+</html>

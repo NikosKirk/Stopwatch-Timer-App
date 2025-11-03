@@ -395,17 +395,23 @@ function updateTimerDisplay() {
         // Remove all animation classes first
         timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse', 'timer-overtime');
         
-        // Apply different animations based on time remaining
-        if (timerTime <= 10000 && timerTime > 0) {
-            // Under 10 seconds: Red to black animation
-            timerDisplay.style.color = '#f44336';
-            timerDisplay.classList.add('timer-warning-pulse');
-        } else if (timerTime > 10000) {
-            // Over 10 seconds: Black color with normal pulse
-            timerDisplay.style.color = '#333';
-            timerDisplay.classList.add('timer-pulse');
+        // Only apply animations if timer is RUNNING
+        if (isTimerRunning) {
+            // Apply different animations based on time remaining
+            if (timerTime <= 10000 && timerTime > 0) {
+                // Under 10 seconds: Red to black animation
+                timerDisplay.style.color = '#f44336';
+                timerDisplay.classList.add('timer-warning-pulse');
+            } else if (timerTime > 10000) {
+                // Over 10 seconds: Black color with normal pulse
+                timerDisplay.style.color = '#333';
+                timerDisplay.classList.add('timer-pulse');
+            } else {
+                // Timer at zero or not running
+                timerDisplay.style.color = '#333';
+            }
         } else {
-            // Timer at zero or not running
+            // Timer is NOT running - show static display
             timerDisplay.style.color = '#333';
         }
     }

@@ -10,6 +10,8 @@ let timerTime = 0;
 let timerIntervalId = null;
 let isTimerRunning = false;
 let originalTimerTime = 0;
+let timerEndTime = null;
+let isTimerOvertime = false;
 
 // DOM Elements
 const display = document.getElementById('display');
@@ -27,7 +29,6 @@ const timerResetBtn = document.getElementById('timerResetBtn');
 const hoursInput = document.getElementById('hours');
 const minutesInput = document.getElementById('minutes');
 const secondsInput = document.getElementById('seconds');
-
 
 // Mode switching elements
 const stopwatchMode = document.getElementById('stopwatchMode');
@@ -77,11 +78,15 @@ function formatTime(time) {
 
 // Format time for timer (without milliseconds)
 function formatTimerTime(time) {
-    let hours = Math.floor(time / 3600000);
-    let minutes = Math.floor((time % 3600000) / 60000);
-    let seconds = Math.floor((time % 60000) / 1000);
+    const absTime = Math.abs(time);
+    let hours = Math.floor(absTime / 3600000);
+    let minutes = Math.floor((absTime % 3600000) / 60000);
+    let seconds = Math.floor((absTime % 60000) / 1000);
+    
+    const sign = time < 0 ? '-' : '';
     
     return (
+        sign +
         String(hours).padStart(2, '0') + ':' +
         String(minutes).padStart(2, '0') + ':' +
         String(seconds).padStart(2, '0')
@@ -139,7 +144,15 @@ function setTimer() {
     timerTime = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
     originalTimerTime = timerTime;
     timerDisplay.textContent = formatTimerTime(timerTime);
+    
+    // If timer is paused and we change the time, update the end time display
+    if (!isTimerRunning && timerTime > 0) {
+        updateEndTimeDisplay();
+    } else {
+        clearEndTimeDisplay();
+    }
 }
+
 
 // Function to normalize time units (convert 60 seconds to 1 minute, etc.)
 function normalizeTimeUnits() {
@@ -225,11 +238,60 @@ function validateInput(inputElement) {
     normalizeTimeUnits();
 }
 
-function startTimer() {
-    if (!isTimerRunning && timerTime > 0) {
+// Function to update end time display
+function updateEndTimeDisplay() {
+    // Remove existing end time display
+    clearEndTimeDisplay();
+    
+    if (timerTime > 0) {
+        const endTimeElement = document.createElement('div');
+        endTimeElement.className = 'end-time-display';
+        endTimeElement.id = 'endTimeDisplay';
+        
+        if (isTimerRunning) {
+            // Timer is running - calculate end time from start
+            const endTimeString = timerEndTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            endTimeElement.textContent = `Ends at: ${endTimeString}`;
+        } else {
+            // Timer is paused - calculate end time from current time + remaining time
+            const newEndTime = new Date(Date.now() + timerTime);
+            const endTimeString = newEndTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            endTimeElement.textContent = `Will end at: ${endTimeString}`;
+        }
+        
+        // Add to timer container after the timer display
+        const timeDisplay = document.getElementById('timerDisplay');
+        timeDisplay.parentNode.insertBefore(endTimeElement, timeDisplay.nextSibling);
+    }
+}
+
+// Function to clear end time display
+function clearEndTimeDisplay() {
+    const existingEndTime = document.getElementById('endTimeDisplay');
+    if (existingEndTime) {
+        existingEndTime.remove();
+    }
+}
+
+function toggleTimer() {
+    if (!isTimerRunning) {
+        // Start/Pause button clicked when timer is not running
         isTimerRunning = true;
+        isTimerOvertime = false;
         // Disable inputs when timer starts
         setTimerInputsState(false);
+        
+        // Remove completion buttons if they exist
+        removeCompletionButtons();
+        
+        // Calculate and display end time based on current timerTime
+        timerEndTime = new Date(Date.now() + timerTime);
+        updateEndTimeDisplay();
+        
+        // Change button text to "Pause"
+        timerStartBtn.textContent = 'Pause';
+        timerStartBtn.style.backgroundColor = '#FF9800';
+        
         updateTimerDisplay();
         updateTimerIndicator();
         
@@ -239,59 +301,113 @@ function startTimer() {
         }
         
         timerIntervalId = setInterval(function() {
-            if (timerTime <= 0) {
-                timerFinished();
-                return;
+            if (timerTime <= 0 && !isTimerOvertime) {
+                // Timer reached zero - start counting negative but don't stop
+                isTimerOvertime = true;
+                // Play alarm when timer reaches zero
+                alarmSound.play();
+                document.body.classList.add('alarm-active');
+                
+                // Show completion buttons
+                showCompletionButtons();
             }
             
+            // Always count down (into negative numbers)
             timerTime -= 1000;
             updateTimerDisplay();
             
         }, 1000);
-    }
-}
-
-function stopTimer() {
-    if (isTimerRunning) {
+    } else {
+        // Pause button clicked when timer is running
         isTimerRunning = false;
         clearInterval(timerIntervalId);
-        timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse');
+        timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse', 'timer-overtime');
         updateTimerIndicator();
-        // Re-enable inputs when timer stops
+        
+        // Remove completion buttons if paused
+        removeCompletionButtons();
+        
+        // Change button text to "Resume"
+        timerStartBtn.textContent = 'Resume';
+        timerStartBtn.style.backgroundColor = '#4CAF50';
+        
+        // ENABLE inputs when timer is paused so user can change time
         setTimerInputsState(true);
+        
+        // Update end time display when paused (will recalculate based on current timerTime)
+        updateEndTimeDisplay();
     }
 }
 
-function resetTimer() {
-    stopTimer();
-    setTimer();
-    timerDisplay.style.color = '#333';
-    timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse');
-    updateTimerIndicator();
-    document.body.classList.remove('alarm-active');
-    stopAlarm(); // Stop alarm when resetting timer
-    // Ensure inputs are enabled after reset
-    setTimerInputsState(true);
-}
 
-function updateTimerDisplay() {
+
+function resetTimer() {
+    // Stop timer if running
+    if (isTimerRunning) {
+        clearInterval(timerIntervalId);
+        isTimerRunning = false;
+    }
+    
+    // Remove completion buttons
+    removeCompletionButtons();
+    
+    // Stop alarm
+    stopAlarm();
+    document.body.classList.remove('alarm-active');
+    
+    // Reset to original input values, not the current timerTime
+    const hours = parseInt(hoursInput.value) || 0;
+    const minutes = parseInt(minutesInput.value) || 0;
+    const seconds = parseInt(secondsInput.value) || 0;
+    
+    timerTime = (hours * 3600000) + (minutes * 60000) + (seconds * 1000);
+    originalTimerTime = timerTime;
     timerDisplay.textContent = formatTimerTime(timerTime);
     
-    // Remove all animation classes first
-    timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse');
+    timerDisplay.style.color = '#333';
+    timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse', 'timer-overtime');
+    updateTimerIndicator();
     
-    // Apply different animations based on time remaining
-    if (timerTime <= 10000 && timerTime > 0) {
-        // Under 10 seconds: Red to black animation
+    // Reset button to "Start"
+    timerStartBtn.textContent = 'Start';
+    timerStartBtn.style.backgroundColor = '#4CAF50';
+    
+    // Ensure inputs are enabled after reset
+    setTimerInputsState(true);
+    
+    // Reset overtime and end time
+    isTimerOvertime = false;
+    timerEndTime = null;
+    clearEndTimeDisplay();
+}
+
+
+function updateTimerDisplay() {
+    // Handle negative time (overtime)
+    if (timerTime < 0) {
+        timerDisplay.textContent = formatTimerTime(timerTime);
         timerDisplay.style.color = '#f44336';
-        timerDisplay.classList.add('timer-warning-pulse');
-    } else if (timerTime > 10000) {
-        // Over 10 seconds: Black color with normal pulse
-        timerDisplay.style.color = '#333';
-        timerDisplay.classList.add('timer-pulse');
+        timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse');
+        timerDisplay.classList.add('timer-overtime');
     } else {
-        // Timer finished or not running
-        timerDisplay.style.color = '#333';
+        timerDisplay.textContent = formatTimerTime(timerTime);
+        
+        // Remove all animation classes first
+        timerDisplay.classList.remove('timer-pulse', 'timer-warning-pulse', 'timer-overtime');
+        
+        // Apply different animations based on time remaining
+        if (timerTime <= 10000 && timerTime > 0) {
+            // Under 10 seconds: Red to black animation
+            timerDisplay.style.color = '#f44336';
+            timerDisplay.classList.add('timer-warning-pulse');
+        } else if (timerTime > 10000) {
+            // Over 10 seconds: Black color with normal pulse
+            timerDisplay.style.color = '#333';
+            timerDisplay.classList.add('timer-pulse');
+        } else {
+            // Timer at zero or not running
+            timerDisplay.style.color = '#333';
+        }
     }
 }
 
@@ -320,43 +436,91 @@ function updateTimerIndicator() {
 // Function to stop the alarm sound
 function stopAlarm() {
     alarmSound.pause();
-    alarmSound.currentTime = 0; // Reset to beginning
+    alarmSound.currentTime = 0;
     document.body.classList.remove('alarm-active');
-    
-    // Remove stop alarm button if it exists
-    const stopAlarmBtn = document.getElementById('stopAlarmBtn');
-    if (stopAlarmBtn) {
-        stopAlarmBtn.remove();
-    }
-    
-    // Reset the timer when stopping alarm
-    resetTimer();
 }
 
-function timerFinished() {
-    stopTimer();
-    timerDisplay.textContent = "00:00:00";
-    timerDisplay.style.color = '#f44336';
+// Function to show completion buttons when timer reaches zero
+function showCompletionButtons() {
+    // Remove existing completion buttons if any
+    removeCompletionButtons();
     
-    alarmSound.play();
-    document.body.classList.add('alarm-active');
+    // Create container for completion buttons
+    const completionContainer = document.createElement('div');
+    completionContainer.className = 'completion-buttons';
+    completionContainer.id = 'completionButtons';
     
-    // Add a button to stop the alarm manually
-    const stopAlarmBtn = document.createElement('button');
-    stopAlarmBtn.textContent = 'Stop Alarm & Reset';
-    stopAlarmBtn.style.backgroundColor = '#f44336';
-    stopAlarmBtn.style.color = 'white';
-    stopAlarmBtn.style.marginTop = '10px';
-    stopAlarmBtn.onclick = function() {
-        stopAlarm();
+    // Create Stop Timer button
+    const stopTimerBtn = document.createElement('button');
+    stopTimerBtn.textContent = 'Stop Timer';
+    stopTimerBtn.style.backgroundColor = '#f44336';
+    stopTimerBtn.style.color = 'white';
+    stopTimerBtn.style.marginTop = '10px';
+    stopTimerBtn.onclick = function() {
+        resetTimer();
     };
     
-    // Add stop alarm button to timer container
-    if (!document.querySelector('#stopAlarmBtn')) {
-        stopAlarmBtn.id = 'stopAlarmBtn';
-        timerContainer.querySelector('.controls').appendChild(stopAlarmBtn);
-    }
+    // Create Extend 5 Minutes button
+    const extendBtn = document.createElement('button');
+    extendBtn.textContent = 'Extend 5 Minutes';
+    extendBtn.style.backgroundColor = '#2196F3';
+    extendBtn.style.color = 'white';
+    extendBtn.style.marginTop = '10px';
+    extendBtn.style.marginLeft = '10px';
+    extendBtn.onclick = function() {
+        extendTimer(5); // Extend by 5 minutes
+    };
+    
+    // Add buttons to container
+    completionContainer.appendChild(stopTimerBtn);
+    completionContainer.appendChild(extendBtn);
+    
+    // Add container to timer controls
+    const controls = timerContainer.querySelector('.controls');
+    controls.appendChild(completionContainer);
+    
+    // Hide the normal controls
+    timerStartBtn.style.display = 'none';
+    timerResetBtn.style.display = 'none';
 }
+
+// Function to remove completion buttons
+function removeCompletionButtons() {
+    const completionButtons = document.getElementById('completionButtons');
+    if (completionButtons) {
+        completionButtons.remove();
+    }
+    
+    // Show normal controls
+    timerStartBtn.style.display = 'block';
+    timerResetBtn.style.display = 'block';
+}
+
+// Function to extend timer by minutes
+function extendTimer(minutes) {
+    // Add time to current timer (can be negative)
+    timerTime += minutes * 60000; // Convert minutes to milliseconds
+    
+    // Stop alarm
+    stopAlarm();
+    document.body.classList.remove('alarm-active');
+    
+    // Remove completion buttons
+    removeCompletionButtons();
+    
+    // Update display
+    updateTimerDisplay();
+    
+    // If timer was in overtime and now has positive time, reset overtime flag
+    if (timerTime > 0 && isTimerOvertime) {
+        isTimerOvertime = false;
+    }
+    
+    // Recalculate end time
+    timerEndTime = new Date(Date.now() + timerTime);
+    updateEndTimeDisplay();
+}
+
 
 function switchToStopwatch() {
     if (isSwitching) {
@@ -455,39 +619,60 @@ stopBtn.addEventListener('click', stop);
 resetBtn.addEventListener('click', reset);
 lapBtn.addEventListener('click', lap);
 
-timerStartBtn.addEventListener('click', startTimer);
-timerStopBtn.addEventListener('click', stopTimer);
+timerStartBtn.addEventListener('click', toggleTimer);
 timerResetBtn.addEventListener('click', resetTimer);
 
 // Updated input event listeners for math evaluation and time normalization
 hoursInput.addEventListener('input', function() {
     validateInput(this);
+    // If timer is paused, update the timer display and end time
+    if (!isTimerRunning) {
+        setTimer();
+    }
 });
 
 hoursInput.addEventListener('blur', function() {
     evaluateAndSetTimer(this);
+    // If timer is paused, update the timer display and end time
+    if (!isTimerRunning) {
+        setTimer();
+    }
 });
 
 minutesInput.addEventListener('input', function() {
     validateInput(this);
+    // If timer is paused, update the timer display and end time
+    if (!isTimerRunning) {
+        setTimer();
+    }
 });
 
 minutesInput.addEventListener('blur', function() {
     evaluateAndSetTimer(this);
+    // If timer is paused, update the timer display and end time
+    if (!isTimerRunning) {
+        setTimer();
+    }
 });
 
 secondsInput.addEventListener('input', function() {
     validateInput(this);
+    // If timer is paused, update the timer display and end time
+    if (!isTimerRunning) {
+        setTimer();
+    }
 });
 
 secondsInput.addEventListener('blur', function() {
     evaluateAndSetTimer(this);
+    // If timer is paused, update the timer display and end time
+    if (!isTimerRunning) {
+        setTimer();
+    }
 });
 
 stopwatchMode.addEventListener('click', switchToStopwatch);
 timerMode.addEventListener('click', switchToTimer);
-
-
 
 // Initialize
 setTimer();

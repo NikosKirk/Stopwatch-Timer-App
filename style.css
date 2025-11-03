@@ -169,10 +169,6 @@ button:active {
     color: white;
 }
 
-#stopBtn, #timerStopBtn {
-    background-color: #f44336;
-    color: white;
-}
 
 #resetBtn, #timerResetBtn {
     background-color: #2196F3;
@@ -491,4 +487,72 @@ button:active {
     border-color: #ddd;
     transform: none;
     box-shadow: none;
+}
+
+/* End time display styles */
+.end-time-display {
+    font-size: 1rem;
+    color: #666;
+    margin-top: -10px;
+    margin-bottom: 20px;
+    font-weight: 500;
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Overtime styles */
+.timer-overtime {
+    color: #f44336 !important;
+    animation: overtime-pulse 0.8s infinite;
+}
+
+@keyframes overtime-pulse {
+    0% { 
+        transform: scale(1);
+        color: #f44336;
+    }
+    50% { 
+        transform: scale(1.08);
+        color: #000000;
+    }
+    100% { 
+        transform: scale(1);
+        color: #f44336;
+    }
+}
+
+/* Overtime styles */
+.timer-overtime {
+    color: #f44336 !important;
+    animation: overtime-pulse 0.8s infinite;
+}
+
+@keyframes overtime-pulse {
+    0% { 
+        transform: scale(1);
+        color: #f44336;
+    }
+    50% { 
+        transform: scale(1.08);
+        color: #000000;
+    }
+    100% { 
+        transform: scale(1);
+        color: #f44336;
+    }
+}
+
+/* Add these styles to your existing CSS */
+
+/* Timer button states */
+#timerStartBtn.resume-state {
+    background-color: #4CAF50 !important;
+}
+
+#timerStartBtn.pause-state {
+    background-color: #FF9800 !important;
 }
